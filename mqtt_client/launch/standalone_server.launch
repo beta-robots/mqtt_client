@@ -1,0 +1,7 @@
+<launch>
+
+  <node pkg="nodelet" type="nodelet" name="server_mqtt_client" args="standalone mqtt_client/MqttClient" output="screen">
+    <rosparam command="load" file="$(find mqtt_client)/config/server_params.yaml" />
+  </node>
+
+</launch>

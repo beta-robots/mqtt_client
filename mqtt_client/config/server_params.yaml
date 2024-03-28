@@ -1,0 +1,16 @@
+broker:
+  host: localhost
+  port: 1883
+client:
+  id: server
+  buffer:
+    size: 100
+bridge:
+  ## switch op sent from server side
+  ros2mqtt:
+    - ros_topic: /server/switch_op_mode
+      mqtt_topic: mqtt_switch_op_mode
+      advanced:
+        ros:
+          initial_type: nav_msgs/Odometry
+          md5: cd5e73d190d741a2f92e81eda573aca7

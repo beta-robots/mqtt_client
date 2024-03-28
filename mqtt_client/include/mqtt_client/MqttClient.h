@@ -378,6 +378,8 @@ class MqttClient : public nodelet::Nodelet,
     struct {
       ros::Subscriber subscriber;  ///< generic ROS subscriber
       int queue_size = 1;          ///< ROS subscriber queue size
+      std::string initial_type;    ///< if given, send type as first message to broker
+      std::string md5;    ///< if given, send type as first message to broker
     } ros;                         ///< ROS-related variables
     struct {
       std::string topic;      ///< MQTT topic
@@ -401,7 +403,7 @@ class MqttClient : public nodelet::Nodelet,
       topic_tools::ShapeShifter shape_shifter;  ///< ROS msg type ShapeShifter
       ros::Publisher latency_publisher;         ///< ROS publisher for latency
       int queue_size = 1;                       ///< ROS publisher queue size
-      bool latched = false;  ///< whether to latch ROS message
+      bool latched = false;                     ///< whether to latch ROS message
     } ros;                   ///< ROS-related variables
     bool primitive = false;  ///< whether to publish as primitive message (if
                              ///< coming from non-ROS MQTT client)

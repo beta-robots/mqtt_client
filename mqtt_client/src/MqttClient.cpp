@@ -253,6 +253,10 @@ void MqttClient::loadParameters() {
             if (advanced_params.hasMember("ros")) {
               if (advanced_params["ros"].hasMember("queue_size"))
                 ros2mqtt.ros.queue_size = advanced_params["ros"]["queue_size"];
+              if (advanced_params["ros"].hasMember("initial_type"))
+                ros2mqtt.ros.initial_type = std::string(advanced_params["ros"]["initial_type"]);
+              if (advanced_params["ros"].hasMember("md5"))
+                ros2mqtt.ros.md5 = std::string(advanced_params["ros"]["md5"]);
             }
             if (advanced_params.hasMember("mqtt")) {
               if (advanced_params["mqtt"].hasMember("qos"))
@@ -817,6 +821,63 @@ void MqttClient::connected(const std::string& cause) {
     client_->subscribe(mqtt_topic, mqtt2ros.mqtt.qos);
     NODELET_DEBUG("Subscribed MQTT topic '%s'", mqtt_topic.c_str());
   }
+
+  // publish types of ROS from ros2mqtt
+  for (auto& ros2mqtt_p : ros2mqtt_)
+  {
+    std::string mqtt_topic = kRosMsgTypeMqttTopicPrefix + ros2mqtt_p.second.mqtt.topic;
+
+    mqtt_client_interfaces::RosMsgType ros_msg_type;
+    ros_msg_type.md5 = ros2mqtt_p.second.ros.md5;
+    ros_msg_type.name = ros2mqtt_p.second.ros.initial_type;
+    // ros_msg_type.definition = ros_msg->getMessageDefinition();
+    ros_msg_type.stamped = ros2mqtt_p.second.stamped;
+
+    NODELET_WARN("Setting ROS message of intial_type '%s' on mqtt topic '%s'",
+                ros_msg_type.name.c_str(), mqtt_topic.c_str());
+
+    uint32_t msg_type_length =
+      ros::serialization::serializationLength(ros_msg_type);
+    std::vector<uint8_t> msg_type_buffer;
+    msg_type_buffer.resize(msg_type_length);
+    ros::serialization::OStream msg_type_stream(msg_type_buffer.data(),
+                                                msg_type_length);
+    ros::serialization::serialize(msg_type_stream, ros_msg_type);
+
+    // send ROS message type information to MQTT broker
+    
+    try {
+      NODELET_DEBUG("Sending ROS message type to MQTT broker on topic '%s' ...",
+                    mqtt_topic.c_str());
+      mqtt::message_ptr mqtt_msg =
+        mqtt::make_message(mqtt_topic, msg_type_buffer.data(),
+                           msg_type_buffer.size(), ros2mqtt_p.second.mqtt.qos, true);
+      client_->publish(mqtt_msg);
+    } catch (const mqtt::exception& e) {
+      NODELET_WARN(
+        "Publishing ROS message type information to MQTT topic '%s' failed: %s",
+        mqtt_topic.c_str(), e.what());
+    }
+
+    // send a dummy message to trigger the publisher creation
+    try {
+      mqtt_topic = ros2mqtt_p.second.mqtt.topic;
+      NODELET_WARN("Sending MQTT dummy message of type '%s' to broker on topic '%s' ...",
+                    ros_msg_type.name.c_str(), mqtt_topic.c_str());
+
+      std::vector<uint8_t> dummy_message_buffer;
+
+      mqtt::message_ptr mqtt_msg =
+        mqtt::make_message(mqtt_topic, dummy_message_buffer.data(),
+                           dummy_message_buffer.size(), ros2mqtt_p.second.mqtt.qos, ros2mqtt_p.second.mqtt.retained);
+      client_->publish(mqtt_msg);
+    } catch (const mqtt::exception& e) {
+      NODELET_WARN(
+        "Publishing ROS message type information to MQTT topic '%s' failed: %s",
+        mqtt_topic.c_str(), e.what());
+    }
+  }
+
 }
 
 
@@ -849,7 +910,7 @@ void MqttClient::message_arrived(mqtt::const_message_ptr mqtt_msg) {
   ros::WallTime arrival_stamp = ros::WallTime::now();
 
   std::string mqtt_topic = mqtt_msg->get_topic();
-  NODELET_DEBUG("Received MQTT message on topic '%s'", mqtt_topic.c_str());
+  NODELET_INFO("Received MQTT message on topic '%s'", mqtt_topic.c_str());
 
   // publish directly if primitive
   if (mqtt2ros_.count(mqtt_topic) > 0) {

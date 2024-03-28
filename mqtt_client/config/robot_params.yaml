@@ -1,0 +1,12 @@
+broker:
+  host: localhost
+  port: 1883
+client:
+  id: duna
+  buffer:
+    size: 100
+bridge:
+  ## switch op received at robot side
+  mqtt2ros:
+    - mqtt_topic: mqtt_switch_op_mode
+      ros_topic: /robot/switch_op_mode
